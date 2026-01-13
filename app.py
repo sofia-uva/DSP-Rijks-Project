@@ -46,9 +46,15 @@ def load_features_array():
 def display_artworks(df, indices, header):
     st.subheader(header)
 
+    if len(indices) == 0:
+        st.info("No artworks to display.")
+        return
+
     cols = st.columns(3)
+
     for i, idx in enumerate(indices):
         row = df.iloc[int(idx)]
+
         title = str(row.get("title", ""))
         artist = str(row.get("artist", ""))
         dating = str(row.get("dating", ""))
@@ -59,16 +65,14 @@ def display_artworks(df, indices, header):
         img_file = str(row.get("image_file", "")).strip()
 
         with cols[i % 3]:
-            # Prefer URL if available
             if img_url:
                 st.image(img_url, caption=caption, use_column_width=True)
+            elif img_file and os.path.exists(img_file):
+                st.image(Image.open(img_file), caption=caption, use_column_width=True)
             else:
-                # Try local file path if it exists
-                if img_file and os.path.exists(img_file):
-                    st.image(Image.open(img_file), caption=caption, use_container_width=True)
-                else:
-                    st.write("No image available")
-                    st.caption(caption)
+                st.write("No image available")
+                st.caption(caption)
+
 
 st.title("Rijksmuseum Artwork Recommendation")
 st.caption("Select a few artworks you like, and I’ll recommend similar works from the Rijksmuseum dataset.")
