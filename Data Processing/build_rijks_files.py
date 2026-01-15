@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 
-RIJKS_CSV = "rijksmuseum_metadata.csv"   # adjust path if needed
+
+RIJKS_CSV = "/Users/VanshitaS/Desktop/DSP Project P3/DSP-Rijks-Project/Data Processing/rijksmuseum_metadata.csv"   # adjust path if needed
 OUT_DIR = "DATA"
 os.makedirs(OUT_DIR, exist_ok=True)
 
