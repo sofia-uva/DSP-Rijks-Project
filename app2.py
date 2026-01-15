@@ -76,32 +76,31 @@ def load_features_array():
 
 def display_artworks(df, indices, header):
     st.subheader(header)
-
-    if len(indices) == 0:
-        st.info("No artworks to display.")
-        return
-
     cols = st.columns(3)
 
     for i, idx in enumerate(indices):
         row = df.iloc[int(idx)]
 
-        title = str(row.get("title", ""))
-        artist = str(row.get("artist", ""))
-        dating = str(row.get("dating", ""))
-
+        title = str(row.get("title", "")).strip()
+        artist = str(row.get("artist", "")).strip()
+        dating = str(row.get("dating", "")).strip()
         caption = f"{title}\n{artist} — {dating}".strip()
 
-        img_url = str(row.get("image_url", "")).strip()
-        img_file = str(row.get("image_file", "")).strip()
+        img_url = row.get("image_url")
+        img_file = row.get("image_file")
 
         with cols[i % 3]:
-            if img_url:
+            # Case 1: valid image URL
+            if isinstance(img_url, str) and img_url.strip():
                 st.image(img_url, caption=caption, use_column_width=True)
-            elif img_file and os.path.exists(img_file):
+
+            # Case 2: valid local file
+            elif isinstance(img_file, str) and os.path.exists(img_file):
                 st.image(Image.open(img_file), caption=caption, use_column_width=True)
+
+            # Case 3: nothing available
             else:
-                st.write("No image available")
+                st.write("🖼️ No image available")
                 st.caption(caption)
 
 
@@ -109,12 +108,11 @@ st.title("Rijksmuseum Artwork Recommendation")
 st.caption("Select a few artworks you like, and I’ll recommend similar works from the Rijksmuseum dataset.")
 
 df = load_metadata_df()
-df["search_text"] = build_search_text(df)   # ✅ add this line
+df["search_text"] = build_search_text(df)   # add this line
 merged_final_features = load_features_array()
 
 merged_final_features = load_features_array()
 
-# Build dropdown labels
 # Build dropdown labels
 labels = (
     df["title"].fillna("").astype(str)
