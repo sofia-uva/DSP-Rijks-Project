@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 from sklearn.metrics.pairwise import cosine_similarity
+from huggingface_hub import hf_hub_download
 
 st.set_page_config(layout="wide")
 
@@ -43,7 +44,7 @@ def open_details_dialog(row, reason_text=None, key="details"):
     def _dialog():
         left, right = st.columns([1.2, 1])
 
-        # ✅ LEFT: Image
+        # LEFT: Image
         with left:
             img_url = row.get("image_url", "")
             img_file = row.get("image_file", "")
@@ -55,7 +56,7 @@ def open_details_dialog(row, reason_text=None, key="details"):
             else:
                 st.info("No image available.")
 
-        # ✅ RIGHT: Details panel
+        # RIGHT: Details panel
         with right:
             st.markdown("### Details")
 
@@ -73,7 +74,7 @@ def open_details_dialog(row, reason_text=None, key="details"):
 
             st.divider()
 
-            # ✅ AI Transparency
+            # AI Transparency
             st.markdown("### AI Transparency")
             st.write(
                 reason_text
@@ -169,7 +170,7 @@ def Reccomend_art(
 def load_metadata_df():
     df = pd.read_csv("./DATA/data_df.csv")
 
-    # safety: ensure these exist (your build script creates them)
+    # safety: ensure these exist 
     for col in ["title", "artist", "dating", "image_url", "image_file"]:
         if col not in df.columns:
             df[col] = ""
@@ -179,7 +180,12 @@ def load_metadata_df():
 
 @st.cache_data
 def load_features_array():
-    return np.load("./DATA/final_multimodal_features.npy")
+    HF_REPO_ID = "sofiaspero/rijks_features"
+    file_path = hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename="final_multimodal_features.npy"
+    )
+    return np.load(file_path)
 
 
 @st.cache_data
@@ -273,7 +279,13 @@ query = st.text_input(
 
 # Filter dropdown options based on query
 if query:
-    mask = df["search_text"].str.contains(query, regex=False, na=False)
+    keywords = query.split()  # split by spaces into separate words
+    mask = pd.Series(True, index=df.index)
+    
+    # Require all keywords to match somewhere in search_text
+    for word in keywords:
+        mask &= df["search_text"].str.contains(word, regex=False, na=False)
+    
     filtered_indices = df.index[mask].tolist()
     filtered_labels = [labels[i] for i in filtered_indices]
     st.caption(f"Matches: {len(filtered_labels)}")
