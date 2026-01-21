@@ -154,14 +154,14 @@ def display_artworks(df, indices, header, artwork_to_exh_names=None):
         with cols[i % 3]:
             # Display image
             if isinstance(img_url, str) and img_url.strip():
-                st.image(img_url, caption=caption, width="stretch")
+                st.image(img_url, caption=caption, use_container_width=True)
             elif isinstance(img_file, str) and os.path.exists(img_file):
                 st.image(Image.open(img_file), caption=caption, width="stretch")
             else:
                 st.write("🖼️ No image available")
                 st.caption(caption)
 
-            # # Display exhibition info
+            # Display exhibition info
             # if artwork_to_exh_names:
             #     exhibitions = artwork_to_exh_names.get(row["id"], [])
             #     if exhibitions:
