@@ -65,27 +65,23 @@ def open_details_dialog(row, reason_text=None, key="details"):
             st.write(f"**Title:** {get_row_field(row, 'title')}")
             st.write(f"**Artist:** {get_row_field(row, 'artist')}")
             st.write(f"**Year:** {get_row_field(row, 'dating')}")
-
             st.write(f"**Object type:** {get_row_field(row, 'object_type')}")
             st.write(f"**Museum department:** {get_row_field(row, 'department')}")
-
             st.write(f"**Dimensions:** {get_row_field(row, 'dimensions')}")
 
-            st.markdown("**Description:**")
-            st.write(get_row_field(row, "description"))
+            # FIX 1: Description on one line if empty
+            desc = get_row_field(row, "description")
+            if desc == "—":
+                st.write(f"**Description:** —")
+            else:
+                st.markdown("**Description:**")
+                st.write(desc)
 
-            st.divider()
-
-            # AI Transparency
+            # FIX 2: Only show divider if AI Transparency exists
             if reason_text:
+                st.divider()
                 st.markdown("### AI Transparency")
                 st.write(reason_text)
-
-            #st.markdown("### AI Transparency")
-            #st.write(
-            #    reason_text
-            #   or "This artwork was recommended because it is similar to your selected artwork(s) based on cosine similarity between feature vectors."
-            #)
 
     _dialog()
 
@@ -120,7 +116,6 @@ def build_search_text(df: pd.DataFrame) -> pd.Series:
             .str.lower()
         )
     )
-
 
 def exhibition_boost(candidate_uri, selected_uris, artwork_to_exh, weight=0.25):
     if candidate_uri not in artwork_to_exh:
@@ -302,75 +297,126 @@ def build_caption(row):
         caption = f"**{title}**\nby {artist} ({dating})"
     return caption
 
-def display_artworks(df, indices, header, reasons=None, allow_add_to_collection=True, collection_cols=3, show_add_button=True):
-    """
-    Display artworks in a grid with captions, view details button,
-    and optional add-to-collection button.
-    
-    Parameters:
-    - df: DataFrame with artwork metadata
-    - indices: list of indices to display
-    - header: section header
-    - reasons: optional dict with recommendation reasons
-    - allow_add_to_collection: whether to show add button
-    - collection_cols: number of columns in grid
-    - show_add_button: whether to display add-to-collection button (False for 'My collection')
-    """
+def display_artworks(df, indices, header, reasons=None, allow_add_to_collection=True, collection_cols=3):
+    # 1. Targeted CSS
+    st.markdown("""
+        <style>
+        div#gallery-container [data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: white;
+            border-radius: 12px !important;
+            border: 1px solid #eee !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+            padding: 15px;
+            transition: transform 0.3s ease;
+        }
+        div#gallery-container [data-testid="stVerticalBlockBorderWrapper"]:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.15) !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.subheader(header)
-    cols = st.columns(collection_cols)
+    st.markdown('<div id="gallery-container">', unsafe_allow_html=True)
+    
+    cols = st.columns(collection_cols, gap="medium")
 
     for i, idx in enumerate(indices):
         row = df.iloc[int(idx)]
         caption = build_caption(row)
         img_url = row.get("image_url")
-        img_file = row.get("image_file")
-
+        reason_text = reasons.get(int(idx)) if reasons else None
+        
         with cols[i % collection_cols]:
-            # Show image
-            if isinstance(img_url, str) and img_url.strip():
-                st.image(img_url, caption=caption, use_container_width=True)
-            elif isinstance(img_file, str) and os.path.exists(img_file):
-                st.image(img_file, caption=caption, use_container_width=True)
-            else:
-                st.write("No image available")
-                st.caption(caption)
+            with st.container(border=True):
+                # Image
+                if isinstance(img_url, str) and img_url.strip():
+                    st.image(img_url, use_container_width=True)
+                else:
+                    st.info("No image available")
+                
+                # Title/Caption
+                st.markdown(caption)
 
-            # Optional reason for recommendation
-            reason_text = reasons.get(int(idx)) if reasons else None
+                # Buttons
+                b1, b2 = st.columns(2)
+                with b1:
+                    # FIX 1: View Details Logic
+                    if st.button("Details", key=f"det_{header}_{idx}", use_container_width=True):
+                        open_details_dialog(row, reason_text=reason_text, key=f"dlg_{header}_{idx}")
+                
+                with b2:
+                    # FIX 2: Add to Collection Logic
+                    if allow_add_to_collection:
+                        # Check if already added to disable button
+                        is_added = idx in st.session_state.curator_collection
+                        if st.button("Add", key=f"add_{header}_{idx}", use_container_width=True, disabled=is_added):
+                            if idx not in st.session_state.curator_collection:
+                                st.session_state.curator_collection.append(idx)
+                                st.rerun() # Refresh to show success/update "My Collection"
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
-            # Buttons row
-            col1, col2 = st.columns([1, 1])  # tight columns for buttons
+# def display_artworks(df, indices, header, reasons=None, allow_add_to_collection=True, collection_cols=3, show_add_button=True):
+#     st.subheader(header)
+#     cols = st.columns(collection_cols)
 
-            # View details button
-            with col1:
-                if st.button("View details", key=f"details_btn_{header}_{idx}"):
-                    open_details_dialog(row, reason_text=reason_text, key=f"{header}_{idx}")
+#     for i, idx in enumerate(indices):
+#         row = df.iloc[int(idx)]
+#         caption = build_caption(row)
+#         img_url = row.get("image_url")
+#         img_file = row.get("image_file")
 
-            # Add to collection button (only if allowed and not in collection)
-            if allow_add_to_collection and show_add_button:
-                with col2:
-                    if idx not in st.session_state.curator_collection:
-                        add_key = f"add_btn_{header}_{idx}"
-                        if st.button("Add to collection", key=add_key):
-                            st.session_state.curator_collection.append(idx)
-                            st.success(f"Added '{build_caption(row)}' to my collection")
+#         with cols[i % collection_cols]:
+#             # Show image
+#             if isinstance(img_url, str) and img_url.strip():
+#                 st.image(img_url, caption=caption, use_container_width=True)
+#             elif isinstance(img_file, str) and os.path.exists(img_file):
+#                 st.image(img_file, caption=caption, use_container_width=True)
+#             else:
+#                 st.write("No image available")
+#                 st.caption(caption)
+
+#             # Optional reason for recommendation
+#             reason_text = reasons.get(int(idx)) if reasons else None
+
+#             # Buttons row
+#             col1, col2 = st.columns([1, 1])  # tight columns for buttons
+
+#             # View details button
+#             with col1:
+#                 if st.button("View details", key=f"details_btn_{header}_{idx}"):
+#                     open_details_dialog(row, reason_text=reason_text, key=f"{header}_{idx}")
+
+#             # Add to collection button (only if allowed and not in collection)
+#             if allow_add_to_collection and show_add_button:
+#                 with col2:
+#                     if idx not in st.session_state.curator_collection:
+#                         add_key = f"add_btn_{header}_{idx}"
+#                         if st.button("Add to collection", key=add_key):
+#                             st.session_state.curator_collection.append(idx)
+#                             st.success(f"Added '{build_caption(row)}' to my collection")
 
 
 # ----------------------------
 # Main app
 # ----------------------------
-st.title("Rijksmuseum Artwork Recommendation")
-st.caption(
-    "Select a few artworks you like, and I’ll recommend similar works from the Rijksmuseum dataset."
+st.title("Rijksmuseum Artwork Recommender")
+
+st.markdown(
+    """
+Select artworks that inspire you, and discover related pieces from the Rijksmuseum collection.
+
+**How to use the system:**
+- Click **Details** to view metadata, including title, artist, date, object type, museum department, dimensions, and description.
+- Click **Add** to include the artwork in your personal collection for this session.
+- Use your selected artworks to explore more recommendations.
+"""
 )
 
 # Session state for curator collection
 if "curator_collection" not in st.session_state:
     st.session_state.curator_collection = []
-
-#df = load_metadata_df()
-#df["search_text"] = build_search_text(df)
-#merged_final_features = load_features_array()
 
 df = load_metadata_df()
 
@@ -402,8 +448,8 @@ caption_to_index = {dropdown_labels[i]: i for i in range(len(df))}
 
 # Keyword search input
 query = st.text_input(
-    "Search artworks (title/description/subjects/etc.)",
-    placeholder="Try: flower, portrait, landscape, japan, vase...",
+    "Search artworks (title, description, subjects, etc.)",
+    placeholder="Try: strand (beach), Noordzee (North Sea), storm op zee (rough sea), and koopvaardij (merchant shipping)",
 ).strip().lower()
 
 # Filter dropdown options based on query
@@ -459,5 +505,5 @@ else:
 
 # --- Always show curator collection ---
 if st.session_state.curator_collection:
-    display_artworks(df, st.session_state.curator_collection, "My collection", collection_cols=4, allow_add_to_collection=False, show_add_button=False)
+    display_artworks(df, st.session_state.curator_collection, "My collection", collection_cols=4, allow_add_to_collection=False)
 
