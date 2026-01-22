@@ -218,7 +218,7 @@ def build_reason_text(df, features, rec_idx: int, selected_indices: list[int]) -
         if col in df.columns:
             rec_set = _to_set(rec_row.get(col))
             sel_set = _to_set(sel_row.get(col))
-            shared = sorted(rec_set.intersection(sel_set))  # ✅ deterministic order
+            shared = sorted(rec_set.intersection(sel_set))
             if shared:
                 shared_bits.append(f"shared {label}: {', '.join(shared[:3])}")
 
